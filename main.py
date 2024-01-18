@@ -3,7 +3,7 @@ import re
 from pathlib import Path
 
 
-def tabulate_includes(input_directory_path, output_table_path):
+def tabulate_includes(input_directory_path):
     table = []
 
     for input_entry_path in input_directory_path.rglob("*"):
@@ -19,9 +19,9 @@ def tabulate_includes(input_directory_path, output_table_path):
                 matches.append(match_.group(2))
 
             if matches:
-                table.append(name + ": " + " ".join(matches))
+                table.append({"name": name, "includes": matches})
 
-    output_table_path.write_text("\n".join(table))
+    return table
 
 
 def add_parser_arguments(parser):
@@ -44,7 +44,12 @@ def main():
     add_parser_arguments(parser)
     args = parser.parse_args()
 
-    tabulate_includes(args.input_directory_path, args.output_table_path)
+    table = tabulate_includes(args.input_directory_path)
+
+    serialized = "\n".join(
+        [line["name"] + ": " + " ".join(line["includes"]) for line in table]
+    )
+    args.output_table_path.write_text(serialized)
 
 
 if __name__ == "__main__":

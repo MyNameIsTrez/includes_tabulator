@@ -25,7 +25,9 @@ def recursively_count_occurrences(table, occurrences, include, seen):
 def count_occurrences(table):
     occurrences = {}
 
-    for name, includes in table.items():
+    for name, value in table.items():
+        includes = value["includes"]
+
         extension = Path(name).suffix
         if extension in cpp_ext:
             for include in includes:
@@ -35,7 +37,7 @@ def count_occurrences(table):
     return occurrences
 
 
-def tabulate_includes(input_directory_path):
+def get_header_table(input_directory_path):
     table = {}
 
     for input_entry_path in input_directory_path.rglob("*"):
@@ -46,16 +48,20 @@ def tabulate_includes(input_directory_path):
         if extension in cpp_and_hpp_ext:
             # print(input_entry_path)
 
+            # The game's files are jank, so the default encoding crashes this program
             text = input_entry_path.read_text(encoding="latin1")
 
-            matches = []
+            includes = []
             for match_ in re.finditer(r"#\s*include\s*[\"\<](.*\/)?(.*)[\"\>]", text):
-                matches.append(match_.group(2))
+                includes.append(match_.group(2))
 
-            if matches:
+            if includes:
                 assert not input_entry_path in table
 
-                table[name] = matches
+                table[name] = {
+                    "includes": includes,
+                    "size": input_entry_path.stat().st_size,
+                }
 
     return table
 
@@ -80,10 +86,25 @@ def main():
     add_parser_arguments(parser)
     args = parser.parse_args()
 
-    table = tabulate_includes(args.input_directory_path)
+    table = get_header_table(args.input_directory_path)
 
     occurrences = count_occurrences(table)
+
     occurrences["total_inclusions"] = sum(occurrences.values())
+
+    occurrences["total_bytes"] = 0
+    occurrences["total_hpp_bytes"] = 0
+    occurrences["total_cpp_bytes"] = 0
+
+    for name, value in table.items():
+        occurrences["total_bytes"] += value["size"]
+
+        extension = Path(name).suffix
+        if extension in hpp_ext:
+            occurrences["total_hpp_bytes"] += value["size"]
+        elif extension in cpp_ext:
+            occurrences["total_cpp_bytes"] += value["size"]
+
     occurrences = dict(
         sorted(occurrences.items(), key=lambda item: item[1], reverse=True)
     )

@@ -2,16 +2,43 @@ import argparse
 import re
 from pathlib import Path
 
+hpp_ext = {".h", ".hh", ".hpp", ".h++"}
+cpp_ext = {".c", ".cc", ".cpp", ".c++"}
+
+cpp_and_hpp_ext = hpp_ext | cpp_ext
+
+
+def recursively_count_occurrences(table, occurrences, include):
+    occurrences[include] = occurrences.get(include, 0) + 1
+
+    if include in table:
+        for subinclude in table[include]:
+            recursively_count_occurrences(table, occurrences, subinclude)
+
+
+def count_occurrences(table):
+    occurrences = {}
+
+    for name, includes in table.items():
+        extension = Path(name).suffix
+        if extension in cpp_ext:
+            for include in includes:
+                recursively_count_occurrences(table, occurrences, str(include))
+
+    return occurrences
+
 
 def tabulate_includes(input_directory_path):
-    table = []
+    table = {}
 
     for input_entry_path in input_directory_path.rglob("*"):
         extension = input_entry_path.suffix
 
         name = input_entry_path.name
 
-        if extension in {".h", ".hh", ".hpp", ".h++", ".c", ".cc", ".cpp", ".c++"}:
+        if extension in cpp_and_hpp_ext:
+            # print(input_entry_path)
+
             text = input_entry_path.read_text(encoding="latin1")
 
             matches = []
@@ -19,7 +46,9 @@ def tabulate_includes(input_directory_path):
                 matches.append(match_.group(2))
 
             if matches:
-                table.append({"name": name, "includes": matches})
+                assert not input_entry_path in table
+
+                table[name] = matches
 
     return table
 
@@ -47,9 +76,16 @@ def main():
     table = tabulate_includes(args.input_directory_path)
 
     serialized = "\n".join(
-        [line["name"] + ": " + " ".join(line["includes"]) for line in table]
+        [str(name) + ": " + " ".join(includes) for name, includes in table.items()]
     )
     args.output_table_path.write_text(serialized)
+
+    occurrences = count_occurrences(table)
+    sorted_occurrences = dict(
+        sorted(occurrences.items(), key=lambda item: item[1], reverse=True)
+    )
+    print("How often each header is included:")
+    print(sorted_occurrences)
 
 
 if __name__ == "__main__":

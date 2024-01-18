@@ -1,4 +1,5 @@
 import argparse
+import json
 import re
 from pathlib import Path
 
@@ -68,7 +69,12 @@ def add_parser_arguments(parser):
     parser.add_argument(
         "output_table_path",
         type=Path,
-        help="Path to the output table that will be generated",
+        help="Path to the output table that will be generated, that shows which headers include which other headers",
+    )
+    parser.add_argument(
+        "output_occurrences_path",
+        type=Path,
+        help="Path to the output occurrences JSON file that will be generated, that shows how often each header is included",
     )
 
 
@@ -87,11 +93,11 @@ def main():
     args.output_table_path.write_text(serialized)
 
     occurrences = count_occurrences(table)
-    sorted_occurrences = dict(
+    occurrences = dict(
         sorted(occurrences.items(), key=lambda item: item[1], reverse=True)
     )
-    print("How often each header is included:")
-    print(sorted_occurrences)
+    with open(args.output_occurrences_path, "w") as f:
+        json.dump(occurrences, f)
 
 
 if __name__ == "__main__":

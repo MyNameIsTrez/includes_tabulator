@@ -18,7 +18,7 @@ def recursively_count_occurrences(table, occurrences, include, seen):
     if include in table:
         seen.add(include)
 
-        for subinclude in table[include]:
+        for subinclude in table[include]["includes"]:
             recursively_count_occurrences(table, occurrences, subinclude, seen)
 
 

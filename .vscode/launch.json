@@ -10,7 +10,7 @@
 			"request": "launch",
 			"program": "${file}",
 			"console": "integratedTerminal",
-			"args": ["input", "table.txt", "occurrences.json"],
+			"args": ["tests", "occurrences.json"],
 			"justMyCode": true
 		}
 	]

@@ -9,11 +9,11 @@ cpp_ext = {".c", ".cc", ".cpp", ".c++"}
 cpp_and_hpp_ext = hpp_ext | cpp_ext
 
 
-def recursively_count_occurrences(table, meta, counts, include, seen):
+def recursively_get_including_counts(table, meta, including_counts, include, seen):
     if include in seen:
-        return
-
-    counts[include] = counts.get(include, 0) + 1
+        return 0
+    
+    count = 0
 
     if include in table:
         seen.add(include)
@@ -28,17 +28,66 @@ def recursively_count_occurrences(table, meta, counts, include, seen):
             meta["total_included_cpp_bytes"] += size
 
         for subinclude in table[include]["includes"]:
-            recursively_count_occurrences(table, meta, counts, subinclude, seen)
+            count += recursively_get_including_counts(
+                table, meta, including_counts, subinclude, seen
+            )
+    
+    if count > 0:
+        assert (not include in including_counts) or (including_counts[include] == count)
+        including_counts[include] = count
+
+    return count + 1
 
 
-def count_occurrences(table):
-    meta = {
-        "total_included_bytes": 0,
-        "total_included_hpp_bytes": 0,
-        "total_included_cpp_bytes": 0,
-    }
-    counts = {}
-    occurrences = {"meta": meta, "counts": counts}
+def get_including_counts(table, meta):
+    including_counts = {}
+
+    for name, value in table.items():
+        includes = value["includes"]
+
+        extension = Path(name).suffix
+        if extension in cpp_ext:
+            count = 0
+
+            for include in includes:
+                seen = set()
+                count += recursively_get_including_counts(
+                    table, meta, including_counts, str(include), seen
+                )
+
+            if count > 0:
+                assert (not name in including_counts) or (including_counts[name] == count)
+                including_counts[name] = count
+
+    return including_counts
+
+
+def recursively_get_inclusion_counts(table, meta, inclusion_counts, include, seen):
+    if include in seen:
+        return
+
+    inclusion_counts[include] = inclusion_counts.get(include, 0) + 1
+
+    if include in table:
+        seen.add(include)
+
+        size = table[include]["size"]
+        meta["total_included_bytes"] += size
+
+        extension = Path(include).suffix
+        if extension in hpp_ext:
+            meta["total_included_hpp_bytes"] += size
+        elif extension in cpp_ext:
+            meta["total_included_cpp_bytes"] += size
+
+        for subinclude in table[include]["includes"]:
+            recursively_get_inclusion_counts(
+                table, meta, inclusion_counts, subinclude, seen
+            )
+
+
+def get_inclusion_counts(table, meta):
+    inclusion_counts = {}
 
     for name, value in table.items():
         includes = value["includes"]
@@ -51,9 +100,11 @@ def count_occurrences(table):
 
             for include in includes:
                 seen = set()
-                recursively_count_occurrences(table, meta, counts, str(include), seen)
+                recursively_get_inclusion_counts(
+                    table, meta, inclusion_counts, str(include), seen
+                )
 
-    return occurrences
+    return inclusion_counts
 
 
 def get_header_table(input_directory_path):
@@ -107,13 +158,36 @@ def main():
 
     table = get_header_table(args.input_directory_path)
 
-    occurrences = count_occurrences(table)
+    meta = {
+        "total_included_bytes": 0,
+        "total_included_hpp_bytes": 0,
+        "total_included_cpp_bytes": 0,
+    }
 
-    occurrences["meta"]["total_inclusions"] = sum(occurrences["counts"].values())
-
-    occurrences["counts"] = dict(
-        sorted(occurrences["counts"].items(), key=lambda item: item[1], reverse=True)
+    inclusion_counts = get_inclusion_counts(table, meta)
+    meta["total_inclusions"] = sum(inclusion_counts.values())
+    inclusion_counts = dict(
+        sorted(
+            inclusion_counts.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
     )
+
+    including_counts = get_including_counts(table, meta)
+    including_counts = dict(
+        sorted(
+            including_counts.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+    )
+
+    occurrences = {
+        "meta": meta,
+        "inclusion_counts": inclusion_counts,
+        "including_counts": including_counts,
+    }
     with open(args.output_occurrences_path, "w") as f:
         json.dump(occurrences, f)
 

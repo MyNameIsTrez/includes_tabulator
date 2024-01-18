@@ -1,6 +1,6 @@
 # includes_tabulator
 
-This tool is useful to figure out which headers are included the most often, both directly and indirectly.
+This tool is used to figure out which headers are included the most often, both directly and indirectly.
 
 ## Usage
 

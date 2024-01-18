@@ -8,12 +8,17 @@ cpp_ext = {".c", ".cc", ".cpp", ".c++"}
 cpp_and_hpp_ext = hpp_ext | cpp_ext
 
 
-def recursively_count_occurrences(table, occurrences, include):
+def recursively_count_occurrences(table, occurrences, include, seen):
+    if include in seen:
+        return
+
     occurrences[include] = occurrences.get(include, 0) + 1
 
     if include in table:
+        seen.add(include)
+
         for subinclude in table[include]:
-            recursively_count_occurrences(table, occurrences, subinclude)
+            recursively_count_occurrences(table, occurrences, subinclude, seen)
 
 
 def count_occurrences(table):
@@ -23,7 +28,8 @@ def count_occurrences(table):
         extension = Path(name).suffix
         if extension in cpp_ext:
             for include in includes:
-                recursively_count_occurrences(table, occurrences, str(include))
+                seen = set()
+                recursively_count_occurrences(table, occurrences, str(include), seen)
 
     return occurrences
 

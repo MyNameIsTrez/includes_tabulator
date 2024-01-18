@@ -67,14 +67,9 @@ def add_parser_arguments(parser):
         help="Path to the input directory containing the headers to tabulate",
     )
     parser.add_argument(
-        "output_table_path",
-        type=Path,
-        help="Path to the output table that will be generated, that shows which headers include which other headers",
-    )
-    parser.add_argument(
         "output_occurrences_path",
         type=Path,
-        help="Path to the output occurrences JSON file that will be generated, that shows how often each header is included",
+        help="Path to the output occurrences JSON file that will be generated, that details how often each header is included",
     )
 
 
@@ -87,13 +82,8 @@ def main():
 
     table = tabulate_includes(args.input_directory_path)
 
-    serialized = "\n".join(
-        [str(name) + ": " + " ".join(includes) for name, includes in table.items()]
-    )
-    args.output_table_path.write_text(serialized)
-
     occurrences = count_occurrences(table)
-    occurrences["total_occurrences"] = sum(occurrences.values())
+    occurrences["total_inclusions"] = sum(occurrences.values())
     occurrences = dict(
         sorted(occurrences.items(), key=lambda item: item[1], reverse=True)
     )

@@ -93,6 +93,7 @@ def main():
     args.output_table_path.write_text(serialized)
 
     occurrences = count_occurrences(table)
+    occurrences["total_occurrences"] = sum(occurrences.values())
     occurrences = dict(
         sorted(occurrences.items(), key=lambda item: item[1], reverse=True)
     )

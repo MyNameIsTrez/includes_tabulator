@@ -9,70 +9,32 @@ cpp_ext = {".c", ".cc", ".cpp", ".c++"}
 cpp_and_hpp_ext = hpp_ext | cpp_ext
 
 
-def recursively_get_including_counts(table, meta, including_counts, include, seen):
-    # Check if we're in an infinite loop
-    if include in seen:
-        return 0
+def recursively_loop_hpp(table, include, seen):
+    if include in table and not include in seen:
+        seen.add(include)
 
-    count = 0
-
-    if include in table:
-        size = table[include]["size"]
-        meta["total_included_bytes"] += size
-
-        extension = Path(include).suffix
-        if extension in hpp_ext:
-            meta["total_included_hpp_bytes"] += size
-        elif extension in cpp_ext:
-            meta["total_included_cpp_bytes"] += size
-
-        seen.append(include)
         for subinclude in table[include]["includes"]:
-            count += recursively_get_including_counts(
-                table, meta, including_counts, subinclude, seen
-            )
-        seen.pop()
-
-    if count > 0:
-        assert (not include in including_counts) or (including_counts[include] == count)
-        including_counts[include] = count
-
-    return count + 1
+            recursively_loop_hpp(table, subinclude, seen)
+    else:
+        seen.add(include)
 
 
-def get_including_counts(table, meta):
-    including_counts = {}
-
+def loop_hpp(table, including_counts):
     for name, value in table.items():
         includes = value["includes"]
 
         extension = Path(name).suffix
-        if extension in cpp_ext:
-            count = 0
-
+        if extension in hpp_ext:
+            seen = set()
             for include in includes:
-                seen = []
-                count += recursively_get_including_counts(
-                    table, meta, including_counts, str(include), seen
-                )
-
-            if count > 0:
-                assert (not name in including_counts) or (
-                    including_counts[name] == count
-                )
-                including_counts[name] = count
-
-    return including_counts
+                recursively_loop_hpp(table, str(include), seen)
+            including_counts[name] = len(seen)
 
 
-def recursively_get_inclusion_counts(table, meta, inclusion_counts, include, seen):
-    # Check if we've already included this header in this cpp file
-    if include in seen:
-        return
-
+def recursively_loop_cpp(table, meta, inclusion_counts, include, seen):
     inclusion_counts[include] = inclusion_counts.get(include, 0) + 1
 
-    if include in table:
+    if include in table and not include in seen:
         seen.add(include)
 
         size = table[include]["size"]
@@ -85,14 +47,12 @@ def recursively_get_inclusion_counts(table, meta, inclusion_counts, include, see
             meta["total_included_cpp_bytes"] += size
 
         for subinclude in table[include]["includes"]:
-            recursively_get_inclusion_counts(
-                table, meta, inclusion_counts, subinclude, seen
-            )
+            recursively_loop_cpp(table, meta, inclusion_counts, subinclude, seen)
+    else:
+        seen.add(include)
 
 
-def get_inclusion_counts(table, meta):
-    inclusion_counts = {}
-
+def loop_cpp(table, meta, inclusion_counts, including_counts):
     for name, value in table.items():
         includes = value["includes"]
 
@@ -102,13 +62,10 @@ def get_inclusion_counts(table, meta):
             meta["total_included_bytes"] += size
             meta["total_included_cpp_bytes"] += size
 
+            seen = set()
             for include in includes:
-                seen = set()
-                recursively_get_inclusion_counts(
-                    table, meta, inclusion_counts, str(include), seen
-                )
-
-    return inclusion_counts
+                recursively_loop_cpp(table, meta, inclusion_counts, str(include), seen)
+            including_counts[name] = len(seen)
 
 
 def get_header_table(input_directory_path):
@@ -168,7 +125,10 @@ def main():
         "total_included_cpp_bytes": 0,
     }
 
-    inclusion_counts = get_inclusion_counts(table, meta)
+    inclusion_counts = {}
+    including_counts = {}
+
+    loop_cpp(table, meta, inclusion_counts, including_counts)
     meta["total_inclusions"] = sum(inclusion_counts.values())
     inclusion_counts = dict(
         sorted(
@@ -178,7 +138,7 @@ def main():
         )
     )
 
-    including_counts = get_including_counts(table, meta)
+    loop_hpp(table, including_counts)
     meta["total_includings"] = sum(including_counts.values())
     including_counts = dict(
         sorted(

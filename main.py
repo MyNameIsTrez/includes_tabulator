@@ -8,7 +8,7 @@ cpp_exts = {".c", ".cc", ".cpp", ".c++"}
 
 cpp_and_hpp_exts = hpp_exts | cpp_exts
 
-including_counts_filter_exts = {
+counts_filter_exts = {
     "sources": cpp_exts,
     "headers": hpp_exts,
     "both": cpp_and_hpp_exts,
@@ -162,19 +162,30 @@ def main():
         )
     )
 
-    including_counts_filter_ext = including_counts_filter_exts[
-        args.including_counts_filter
-    ]
+    counts_filter_ext = counts_filter_exts[args.including_counts_filter]
     including_counts = {
         name: v
         for name, v in including_counts.items()
-        if Path(name).suffix in including_counts_filter_ext
+        if Path(name).suffix in counts_filter_ext
     }
+
+    chunkiness_scores = inclusion_counts.copy()
+    for name in chunkiness_scores.keys():
+        if name in including_counts:
+            chunkiness_scores[name] *= including_counts[name]
+    chunkiness_scores = dict(
+        sorted(
+            chunkiness_scores.items(),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+    )
 
     occurrences = {
         "meta": meta,
         "inclusion_counts": inclusion_counts,
         "including_counts": including_counts,
+        "chunkiness_scores": chunkiness_scores,
     }
     with open(args.output_occurrences_path, "w") as f:
         json.dump(occurrences, f, indent=4)

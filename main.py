@@ -179,6 +179,7 @@ def main():
     )
 
     including_counts = get_including_counts(table, meta)
+    meta["total_includings"] = sum(including_counts.values())
     including_counts = dict(
         sorted(
             including_counts.items(),

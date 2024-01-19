@@ -28,6 +28,8 @@ def loop_hpp(table, including_counts):
             seen = set()
             for include in includes:
                 recursively_loop_hpp(table, str(include), seen)
+
+            assert not name in including_counts
             including_counts[name] = len(seen)
 
 
@@ -65,6 +67,8 @@ def loop_cpp(table, meta, inclusion_counts, including_counts):
             seen = set()
             for include in includes:
                 recursively_loop_cpp(table, meta, inclusion_counts, str(include), seen)
+
+            assert not name in including_counts
             including_counts[name] = len(seen)
 
 
@@ -72,10 +76,9 @@ def get_header_table(input_directory_path):
     table = {}
 
     for input_entry_path in input_directory_path.rglob("*"):
-        extension = input_entry_path.suffix
-
         name = input_entry_path.name
 
+        extension = input_entry_path.suffix
         if extension in cpp_and_hpp_ext:
             # print(input_entry_path)
 
@@ -87,8 +90,7 @@ def get_header_table(input_directory_path):
                 includes.append(match_.group(2))
 
             if includes:
-                assert not input_entry_path in table
-
+                assert not name in table
                 table[name] = {
                     "includes": includes,
                     "size": input_entry_path.stat().st_size,

@@ -156,7 +156,7 @@ def main():
         "including_counts": including_counts,
     }
     with open(args.output_occurrences_path, "w") as f:
-        json.dump(occurrences, f)
+        json.dump(occurrences, f, indent=4)
 
 
 if __name__ == "__main__":

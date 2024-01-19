@@ -3,10 +3,16 @@ import json
 import re
 from pathlib import Path
 
-hpp_ext = {".h", ".hh", ".hpp", ".h++"}
-cpp_ext = {".c", ".cc", ".cpp", ".c++"}
+hpp_exts = {".h", ".hh", ".hpp", ".h++"}
+cpp_exts = {".c", ".cc", ".cpp", ".c++"}
 
-cpp_and_hpp_ext = hpp_ext | cpp_ext
+cpp_and_hpp_exts = hpp_exts | cpp_exts
+
+including_counts_filter_exts = {
+    "sources": cpp_exts,
+    "headers": hpp_exts,
+    "both": cpp_and_hpp_exts,
+}
 
 
 def recursively_loop_hpp(table, include, seen):
@@ -24,7 +30,7 @@ def loop_hpp(table, including_counts):
         includes = value["includes"]
 
         extension = Path(name).suffix
-        if extension in hpp_ext:
+        if extension in hpp_exts:
             seen = set()
             for include in includes:
                 recursively_loop_hpp(table, str(include), seen)
@@ -45,9 +51,9 @@ def recursively_loop_cpp(table, meta, inclusion_counts, include, seen):
         meta["total_included_bytes"] += size
 
         extension = Path(include).suffix
-        if extension in hpp_ext:
+        if extension in hpp_exts:
             meta["total_included_hpp_bytes"] += size
-        elif extension in cpp_ext:
+        elif extension in cpp_exts:
             meta["total_included_cpp_bytes"] += size
 
         for subinclude in table[include]["includes"]:
@@ -59,7 +65,7 @@ def loop_cpp(table, meta, inclusion_counts, including_counts):
         includes = value["includes"]
 
         extension = Path(name).suffix
-        if extension in cpp_ext:
+        if extension in cpp_exts:
             size = value["size"]
             meta["total_included_bytes"] += size
             meta["total_included_cpp_bytes"] += size
@@ -79,7 +85,7 @@ def get_header_table(input_directory_path):
         name = input_entry_path.name
 
         extension = input_entry_path.suffix
-        if extension in cpp_and_hpp_ext:
+        if extension in cpp_and_hpp_exts:
             # print(input_entry_path)
 
             # Cortex Command's files are jank, so the default encoding crashes this program
@@ -109,6 +115,12 @@ def add_parser_arguments(parser):
         "output_occurrences_path",
         type=Path,
         help="Path to the output occurrences JSON file that will be generated, that details how often each header is included",
+    )
+    parser.add_argument(
+        "--including_counts_filter",
+        choices=["sources", "headers", "both"],
+        default="both",
+        help="Specific file type to filter 'including_counts' in the JSON file by",
     )
 
 
@@ -149,6 +161,15 @@ def main():
             reverse=True,
         )
     )
+
+    including_counts_filter_ext = including_counts_filter_exts[
+        args.including_counts_filter
+    ]
+    including_counts = {
+        name: v
+        for name, v in including_counts.items()
+        if Path(name).suffix in including_counts_filter_ext
+    }
 
     occurrences = {
         "meta": meta,

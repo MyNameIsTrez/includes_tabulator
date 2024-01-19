@@ -10,14 +10,13 @@ cpp_and_hpp_ext = hpp_ext | cpp_ext
 
 
 def recursively_get_including_counts(table, meta, including_counts, include, seen):
+    # Check if we're in an infinite loop
     if include in seen:
         return 0
-    
+
     count = 0
 
     if include in table:
-        seen.add(include)
-
         size = table[include]["size"]
         meta["total_included_bytes"] += size
 
@@ -27,11 +26,13 @@ def recursively_get_including_counts(table, meta, including_counts, include, see
         elif extension in cpp_ext:
             meta["total_included_cpp_bytes"] += size
 
+        seen.append(include)
         for subinclude in table[include]["includes"]:
             count += recursively_get_including_counts(
                 table, meta, including_counts, subinclude, seen
             )
-    
+        seen.pop()
+
     if count > 0:
         assert (not include in including_counts) or (including_counts[include] == count)
         including_counts[include] = count
@@ -50,19 +51,22 @@ def get_including_counts(table, meta):
             count = 0
 
             for include in includes:
-                seen = set()
+                seen = []
                 count += recursively_get_including_counts(
                     table, meta, including_counts, str(include), seen
                 )
 
             if count > 0:
-                assert (not name in including_counts) or (including_counts[name] == count)
+                assert (not name in including_counts) or (
+                    including_counts[name] == count
+                )
                 including_counts[name] = count
 
     return including_counts
 
 
 def recursively_get_inclusion_counts(table, meta, inclusion_counts, include, seen):
+    # Check if we've already included this header in this cpp file
     if include in seen:
         return
 

@@ -10,13 +10,13 @@ cpp_and_hpp_ext = hpp_ext | cpp_ext
 
 
 def recursively_loop_hpp(table, include, seen):
-    if include in table and not include in seen:
-        seen.add(include)
+    if include in seen:
+        return
+    seen.add(include)
 
+    if include in table:
         for subinclude in table[include]["includes"]:
             recursively_loop_hpp(table, subinclude, seen)
-    else:
-        seen.add(include)
 
 
 def loop_hpp(table, including_counts):
@@ -34,11 +34,13 @@ def loop_hpp(table, including_counts):
 
 
 def recursively_loop_cpp(table, meta, inclusion_counts, include, seen):
+    if include in seen:
+        return
+    seen.add(include)
+
     inclusion_counts[include] = inclusion_counts.get(include, 0) + 1
 
-    if include in table and not include in seen:
-        seen.add(include)
-
+    if include in table:
         size = table[include]["size"]
         meta["total_included_bytes"] += size
 
@@ -50,8 +52,6 @@ def recursively_loop_cpp(table, meta, inclusion_counts, include, seen):
 
         for subinclude in table[include]["includes"]:
             recursively_loop_cpp(table, meta, inclusion_counts, subinclude, seen)
-    else:
-        seen.add(include)
 
 
 def loop_cpp(table, meta, inclusion_counts, including_counts):
@@ -82,7 +82,7 @@ def get_header_table(input_directory_path):
         if extension in cpp_and_hpp_ext:
             # print(input_entry_path)
 
-            # The game's files are jank, so the default encoding crashes this program
+            # Cortex Command's files are jank, so the default encoding crashes this program
             text = input_entry_path.read_text(encoding="latin1")
 
             includes = []

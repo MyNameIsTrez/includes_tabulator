@@ -1,6 +1,6 @@
 # includes_tabulator
 
-This tool is used to figure out which headers are included the most often, both directly and indirectly.
+This tool outputs a JSON file containing statistics about which headers were included the most often in your project, which files included the most headers, and so on.
 
 ## Usage
 

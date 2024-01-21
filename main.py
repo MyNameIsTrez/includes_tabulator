@@ -27,12 +27,10 @@ def recursively_loop_hpp(table, include, seen):
 
 def loop_hpp(table, including_counts):
     for name, value in table.items():
-        includes = value["includes"]
-
         extension = Path(name).suffix
         if extension in hpp_exts:
             seen = set()
-            for include in includes:
+            for include in value["includes"]:
                 recursively_loop_hpp(table, str(include), seen)
 
             assert not name in including_counts
@@ -47,31 +45,20 @@ def recursively_loop_cpp(table, meta, inclusion_counts, include, seen):
     inclusion_counts[include] = inclusion_counts.get(include, 0) + 1
 
     if include in table:
-        size = table[include]["size"]
-        meta["total_included_bytes"] += size
-
-        extension = Path(include).suffix
-        if extension in hpp_exts:
-            meta["total_included_hpp_bytes"] += size
-        elif extension in cpp_exts:
-            meta["total_included_cpp_bytes"] += size
+        meta["total_included_bytes"] += table[include]["size"]
 
         for subinclude in table[include]["includes"]:
             recursively_loop_cpp(table, meta, inclusion_counts, subinclude, seen)
 
 
 def loop_cpp(table, meta, inclusion_counts, including_counts):
-    for name, value in table.items():
-        includes = value["includes"]
+    meta["total_included_bytes"] = 0
 
+    for name, value in table.items():
         extension = Path(name).suffix
         if extension in cpp_exts:
-            size = value["size"]
-            meta["total_included_bytes"] += size
-            meta["total_included_cpp_bytes"] += size
-
             seen = set()
-            for include in includes:
+            for include in value["includes"]:
                 recursively_loop_cpp(table, meta, inclusion_counts, str(include), seen)
 
             assert not name in including_counts
@@ -133,12 +120,7 @@ def main():
 
     table = get_header_table(args.input_directory_path)
 
-    meta = {
-        "total_included_bytes": 0,
-        "total_included_hpp_bytes": 0,
-        "total_included_cpp_bytes": 0,
-    }
-
+    meta = {}
     inclusion_counts = {}
     including_counts = {}
 
